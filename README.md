@@ -58,7 +58,7 @@ for hit in hits[0:3]:
     print(hit)
 ```
 
-The database has 646,424 embeddings and a total size of XXX MB. However, just XXX MB for the binary embeddings are loaded in memory. The documents and their int8 embeddings are kept on disk and are just loaded when needed.
+The database has 646,424 embeddings and a total size of 962 MB. However, just 80 MB for the binary embeddings are loaded in memory. The documents and their int8 embeddings are kept on disk and are just loaded when needed.
 
 This split of binary embeddings in memory and int8 embeddings & documents on disk allows us to scale to very large datasets without need tons of memory.
 
