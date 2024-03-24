@@ -12,7 +12,7 @@ Most embedding models represent their vectors as float32: These consume a lot of
 | **Cohere Embed v3 (Multilingual)** | | | | |
 | Embed v3 - float32 | 66.3 | 460 ms | 954 GB | $43,488 / yr |
 | Embed v3 - binary | 62.8 | 24 ms | 30 GB | $1,359 / yr |
-| Embed v3 - binary + int8 rescore | 66.3 | 28 ms | 30 GB + 240 GB disk | $1,589 / yr |
+| Embed v3 - binary + int8 rescore | 66.3 | 28 ms | 30 GB memory + 240 GB disk | $1,589 / yr |
 
 
 # Setup
@@ -22,7 +22,7 @@ The setup is easy:
 pip install BinaryVectorDB
 ```
 
-To use some of the below examples you need a **Cohere API key** (free or paid) from [https://cohere.com/](Cohere.com) 
+To use some of the below examples you need a **Cohere API key** (free or paid) from [https://cohere.com/](Cohere.com). You must set this API key as an environment variable: `export COHERE_API_KEY=your_api_key`  
 
 
 # Usage - Load an Existing Binary Vector Database
@@ -45,11 +45,11 @@ unzip wikipedia-2023-11-simple.zip
 You can load the database easily by pointing it to the unzipped folder from the previous step:
 
 ```python
-from BinaryVectorDB import CohereBinaryVectorDB
+from BinaryVectorDB import BinaryVectorDB
 
 # Point it to the unzipped folder from the previous step
 # Ensure that you have set your Cohere API key via: export COHERE_API_KEY=<<YOUR_KEY>>
-db = CohereBinaryVectorDB("wikipedia-2023-11-simple/")
+db = BinaryVectorDB("wikipedia-2023-11-simple/")
 
 query = "Who is the founder of Facebook"
 print("Query:", query)
@@ -67,7 +67,7 @@ This split of binary embeddings in memory and int8 embeddings & documents on dis
 It is quite easy to build your own Binary Vector Database.
 
 ```python
-from BinaryVectorDB import CohereBinaryVectorDB
+from BinaryVectorDB import BinaryVectorDB
 import os
 import gzip
 import json
@@ -82,7 +82,7 @@ if not os.path.exists(simplewiki_file):
 # Create the vector DB with an empty folder
 # Ensure that you have set your Cohere API key via: export COHERE_API_KEY=<<YOUR_KEY>>
 db_folder = "path_to_an_empty_folder/"
-db = CohereBinaryVectorDB(db_folder)
+db = BinaryVectorDB(db_folder)
 
 if len(db) > 0:
     exit(f"The database {db_folder} is not empty. Please provide an empty folder to create a new database.")
@@ -105,29 +105,10 @@ db.add_documents(doc_ids=list(range(len(docs))), docs=docs, docs2text=lambda doc
 The document can be any Python serializable object. You need to provide a function for `docs2text` that map your document to a string. In the above example, we concatenate the title and text field. This string is send to the embedding model to produce the needed text embeddings.
 
 
-## Add more documents
-It is easy to add more documents to an existing database:
-
-```python
-from BinaryVectorDB import CohereBinaryVectorDB
-
-db_folder = "path_to_an_empty_folder/"
-db = CohereBinaryVectorDB(db_folder)
-
-print(f"The DB has currently {len(db)} docs stored")
-
-new_docs = [
-    "BinaryVectorDB is an amazing example how binary & int8 embeddings allows scaling to large datasets",
-    "To learn more about BinaryVectorDB visit cohere.com"
-]
-
-db.add_documents(docs, docs2text=lambda doc: doc)
-
-print(f"The DB has currently {len(db)} docs stored")
-```
 
 ## Updating & Deleting Documents
 
+See [examples/add_update_delete.py](examples/add_update_delete.py) for an example script how to add/update/delete documents in the database.
 
 # Is this a real Vector Database?
 

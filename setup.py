@@ -19,7 +19,7 @@ setup(
         'faiss-cpu==1.8.0',
         'numpy',
         'rocksdict',
-        'cohere>=4.56',
+        'cohere==4.57',
         'packaging'
     ],
     classifiers=[

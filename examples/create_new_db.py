@@ -7,7 +7,7 @@ export COHERE_API_KEY=your_api_key
 It downloads paragraphs from the Simple English Wikipedia dataset. These paragraphs are embedded 
 via the Cohere Embed v3 API and then added to the database.
 """
-from BinaryVectorDB import CohereBinaryVectorDB
+from BinaryVectorDB import BinaryVectorDB
 import os
 import gzip
 import json
@@ -22,7 +22,7 @@ if not os.path.exists(simplewiki_file):
 # Create the vector DB with an empty folder
 # Ensure that you have set your Cohere API key via: export COHERE_API_KEY=<<YOUR_KEY>>
 db_folder = "path_to_an_empty_folder/"
-db = CohereBinaryVectorDB(db_folder)
+db = BinaryVectorDB(db_folder)
 
 if len(db) > 0:
     exit(f"The database {db_folder} is not empty. Please provide an empty folder to create a new database.")
@@ -39,7 +39,7 @@ docs = docs[0:10_000]
 # Add all documents to the DB
 # docs2text defines a function that maps our documents to a string
 # This string is then embedded with the state-of-the-art Cohere embedding model
-db.add_documents(doc_ids=list(range(len(docs))), docs, docs2text=lambda doc: doc['title']+" "+doc['text'])
+db.add_documents(doc_ids=list(range(len(docs))), docs=docs, docs2text=lambda doc: doc['title']+" "+doc['text'])
 
 
 #Now you can search on your db:

@@ -44,7 +44,7 @@ class BinaryVectorDB:
         self.doc_db = Rdict(os.path.join(folder, "docs"), rdict_options)
         
 
-    def add_documents(self, doc_ids, docs, docs2text=lambda x: x, batch_size = 960):
+    def add_documents(self, doc_ids, docs, docs2text=lambda x: x, batch_size = 960, save=True):
         """
         Add documents to the index.
         
@@ -53,9 +53,10 @@ class BinaryVectorDB:
             docs: List of documents. Each document can be any object. The docs2text function will be called on each document to convert it to a string.
             docs2text: Function that converts a document to a string. The default is the identity function.
             batch_size: Number of documents to add in each batch. Default is 960.
+            save: Save index after adding the docs. Default is True.
         """
-        if len(doc_ids) != docs:
-            raise ValueError("ids and docs must have the same length.")
+        if len(doc_ids) != len(docs):
+            raise ValueError(f"ids and docs must have the same length. Got {len(doc_ids)} doc_ids and {len(docs)} docs.")
 
         if isinstance(doc_ids, np.ndarray):
             doc_ids = doc_ids.tolist()
@@ -90,7 +91,8 @@ class BinaryVectorDB:
                 self._add_batch(batch_ids, batch_docs, emb.ubinary, emb.int8)
                 pBar.update(len(batch_text))
 
-        self.db.save()
+        if save:
+            self.save()
 
     def _add_batch(self, doc_ids, docs, emb_ubinary, emb_int8):
         if not isinstance(emb_ubinary, np.ndarray):
@@ -127,7 +129,7 @@ class BinaryVectorDB:
         if doc_id not in self.doc_db:
             raise ValueError(f"Document with id {doc_id} not found.")
         
-        self.index.remove_ids(doc_id)
+        self.index.remove_ids(np.asarray([doc_id]))
         del self.doc_db[doc_id]
 
         if save:

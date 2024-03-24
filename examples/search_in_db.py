@@ -14,7 +14,7 @@ unzip wikipedia-2023-11-simple.zip
 Usage:
 python search_in_db.py /path/to/db/folder
 """
-from BinaryVectorDB import CohereBinaryVectorDB
+from BinaryVectorDB import BinaryVectorDB
 import sys 
 import logging 
 
@@ -23,11 +23,11 @@ logging.basicConfig(format='%(asctime)s - %(message)s',
                     level=logging.INFO)
 
 db_folder = sys.argv[1]
-db = CohereBinaryVectorDB(db_folder)
+db = BinaryVectorDB(db_folder)
 
 while True:
     query = input("Query: ")
-    hits = db.search(query, k=3)
+    hits = db.search(query, k=10)
     for hit in hits:
         print(hit)
     
