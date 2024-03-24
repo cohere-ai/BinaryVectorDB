@@ -99,7 +99,7 @@ docs = docs[0:10_000]
 # Add all documents to the DB
 # docs2text defines a function that maps our documents to a string
 # This string is then embedded with the state-of-the-art Cohere embedding model
-db.add_documents(docs, docs2text=lambda doc: doc['title']+" "+doc['text'])
+db.add_documents(doc_ids=list(range(len(docs))), docs=docs, docs2text=lambda doc: doc['title']+" "+doc['text'])
 ```
 
 The document can be any Python serializable object. You need to provide a function for `docs2text` that map your document to a string. In the above example, we concatenate the title and text field. This string is send to the embedding model to produce the needed text embeddings.
@@ -131,6 +131,6 @@ print(f"The DB has currently {len(db)} docs stored")
 
 # Is this a real Vector Database?
 
-Not really. It repository is meant mostly for educational purposes to show techniques how to scale to large datasets.
+Not really. The repository is meant mostly for educational purposes to show techniques how to scale to large datasets. The focus was more on ease of use and some critical aspects are missing in the implementation, like multi-process safety, rollbacks etc. 
 
 If you actually wants to go into production, use a proper vector database like [Vespa.ai](https://blog.vespa.ai/scaling-large-vector-datasets-with-cohere-binary-embeddings-and-vespa/), that allows you to achieve similar results.

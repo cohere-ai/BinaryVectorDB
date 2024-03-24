@@ -39,7 +39,7 @@ docs = docs[0:10_000]
 # Add all documents to the DB
 # docs2text defines a function that maps our documents to a string
 # This string is then embedded with the state-of-the-art Cohere embedding model
-db.add_documents(docs, docs2text=lambda doc: doc['title']+" "+doc['text'])
+db.add_documents(doc_ids=list(range(len(docs))), docs, docs2text=lambda doc: doc['title']+" "+doc['text'])
 
 
 #Now you can search on your db:
