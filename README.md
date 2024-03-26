@@ -34,7 +34,7 @@ To use some of the below examples you need a **Cohere API key** (free or paid) f
 
 # Usage - Load an Existing Binary Vector Database
 
-We will show later how to build a vector DB on your own data. For the start, let us use a **pre-build binary vector database**. We host various **pre-build databases** on [https://huggingface.co/Cohere/BinaryVectorDB](https://huggingface.co/Cohere/BinaryVectorDB). You can download these and use them localy.
+We will show later how to build a vector DB on your own data. For the start, let us use a **pre-build binary vector database**. We host various **pre-build databases** on [https://huggingface.co/datasets/Cohere/BinaryVectorDB](https://huggingface.co/datasets/Cohere/BinaryVectorDB). You can download these and use them localy.
 
 Let us the simple English version from Wikipedia to get started:
 ```
