@@ -13,35 +13,57 @@ from typing import List
 logger = logging.getLogger(__name__)
 
 class BinaryVectorDB:
-    def __init__(self, folder, model = "embed-multilingual-v3.0", index_type=faiss.IndexBinaryFlat, index_args=[1024], rdict_options=None):
-        if 'COHERE_API_KEY' not in os.environ:
-            raise Exception("Please set the COHERE_API_KEY environment variable to your Cohere API key.")
-        
-        self.co = cohere.Client(os.environ['COHERE_API_KEY']) 
+    class BinaryVectorDB:
 
-        config_path = os.path.join(folder, "config.json")
-        if not os.path.exists(config_path):
-            if os.path.exists(folder) and len(os.listdir(folder)) > 0:
-                raise Exception(f"Folder {folder} contains files, but no config.json. If you want to create a new CohereBinaryVectorDB, the folder must be empty. If you want to load an existing CohereBinaryVectorDB, the folder must contain a config.json file that defines the model.")
+
+        def __init__(self, folder, model="embed-multilingual-v3.0", index_type=faiss.IndexBinaryFlat, index_args=[1024], rdict_options=None):
+            """
+            Initialize a BinaryVectorDB object.
+
+            If the specified folder does not exist, it will be created along with a config.json file.
+            If the folder contains files but no config.json, an exception will be raised.
+            If the folder contains an existing Faiss index file (index.bin), it will be loaded.
+
+            Args:
+                folder (str): The path to the folder where the database will be stored.
+                model (str, optional): The name of the pre-trained model to use for vector embeddings. Defaults to "embed-multilingual-v3.0".
+                index_type (class, optional): The type of Faiss index to use for binary vectors. Defaults to faiss.IndexBinaryFlat.
+                index_args (list, optional): Additional arguments to pass to the Faiss index constructor. Defaults to [1024].
+                rdict_options (dict, optional): Options to configure the Rdict database. Defaults to None.
+
+            Raises:
+                Exception: If the COHERE_API_KEY environment variable is not set.
+                Exception: If the specified folder contains files but no config.json.
+            """
             
+            if 'COHERE_API_KEY' not in os.environ:
+                raise Exception("Please set the COHERE_API_KEY environment variable to your Cohere API key.")
+            
+            self.co = cohere.Client(os.environ['COHERE_API_KEY']) 
+
+            config_path = os.path.join(folder, "config.json")
+            if not os.path.exists(config_path):
+                if os.path.exists(folder) and len(os.listdir(folder)) > 0:
+                    raise Exception(f"Folder {folder} contains files, but no config.json. If you want to create a new CohereBinaryVectorDB, the folder must be empty. If you want to load an existing CohereBinaryVectorDB, the folder must contain a config.json file that defines the model.")
+                
+                os.makedirs(folder, exist_ok=True)
+                with open(config_path, "w") as fOut:
+                    config = {'version': '1.0', 'model': model}
+                    json.dump(config, fOut)
+            
+            with open(config_path, "r") as fIn:
+                self.config = json.load(fIn)
+
             os.makedirs(folder, exist_ok=True)
-            with open(config_path, "w") as fOut:
-                config = {'version': '1.0', 'model': model}
-                json.dump(config, fOut)
-        
-        with open(config_path, "r") as fIn:
-            self.config = json.load(fIn)
+            self.folder = folder
 
-        os.makedirs(folder, exist_ok=True)
-        self.folder = folder
+            faiss_index_path = os.path.join(folder, "index.bin")
+            if not os.path.exists(faiss_index_path):
+                self.index = faiss.IndexBinaryIDMap2(index_type(*index_args))
+            else:
+                self.index = faiss.read_index_binary(faiss_index_path)
 
-        faiss_index_path = os.path.join(folder, "index.bin")
-        if not os.path.exists(faiss_index_path):
-            self.index = faiss.IndexBinaryIDMap2(index_type(*index_args))
-        else:
-            self.index = faiss.read_index_binary(faiss_index_path)
-
-        self.doc_db = Rdict(os.path.join(folder, "docs"), rdict_options)
+            self.doc_db = Rdict(os.path.join(folder, "docs"), rdict_options)
         
 
     def add_documents(self, doc_ids, docs, docs2text=lambda x: x, batch_size = 960, save=True):
@@ -95,6 +117,10 @@ class BinaryVectorDB:
             self.save()
 
     def _add_batch(self, doc_ids, docs, emb_ubinary, emb_int8):
+        """
+        Allows to insert a batch of doc_ids, docs, emb_ubinary and emb_int8 into the index.
+        Great to use if you have pre-embedded dataset. 
+        """
         if not isinstance(emb_ubinary, np.ndarray):
             emb_ubinary = np.asarray(emb_ubinary, dtype=np.uint8)
 
@@ -120,12 +146,18 @@ class BinaryVectorDB:
     
 
     def _add_doc(self, doc_id, doc, emb_int8):
+        """
+        Adds a single document to RocksDB using the doc_id as key, together with the int8 embedding of the document.
+        """
         if not isinstance(emb_int8, np.ndarray):
             emb_int8 = np.asarray(emb_int8, dtype=np.int8)
 
         self.doc_db[doc_id] = {'doc': doc, 'emb_int8':  emb_int8} 
 
     def remove_doc(self, doc_id: int, save=True):
+        """
+        Removes a document from the index and the RocksDB database.
+        """
         if doc_id not in self.doc_db:
             raise ValueError(f"Document with id {doc_id} not found.")
         
@@ -136,9 +168,27 @@ class BinaryVectorDB:
             self.save()
 
     def save(self):
+        """
+        Writes the faiss index to disk.
+        """
         faiss.write_index_binary(self.index, os.path.join(self.folder, "index.bin"))
 
-    def search(self, query, k=10, binary_oversample=10, int8_oversample=3):
+    def search(self, query: str, k:int=10, binary_oversample:int=10, int8_oversample:int=3):
+        """
+        Embeds the query and searches the index for the most similar documents.
+
+        Args:
+            query (str): The query string to search for.
+            k (int, optional): The number of most similar documents to retrieve. Defaults to 10.
+            binary_oversample (int, optional): The oversampling factor for binary embeddings. Defaults to 10. So 10*10=100 will be rescored with <query_float, doc_binary> embeddings
+            int8_oversample (int, optional): The oversampling factor for int8 embeddings. Defaults to 3. So 3*10=30 int8 embeddings will be loaded from disk for rescoring with <query_float, doc_int8> embeddings.
+        
+        Returns:
+            list: A list of tuples containing the most similar documents and their similarity scores.
+        
+        Raises:
+            Exception: If no documents are indexed before searching.
+        """
         if self.index.ntotal == 0:
             raise Exception("No documents indexed. Please add documents before searching.")
         
@@ -147,9 +197,12 @@ class BinaryVectorDB:
                                    input_type="search_query", 
                                    embedding_types=["float", "ubinary"]).embeddings
 
-        return self._search_emb(query_emb.float, query_emb.ubinary, k=k, binary_oversample=10, int8_oversample=3)
+        return self._search_emb(query_emb.float, query_emb.ubinary, k=k, binary_oversample=binary_oversample, int8_oversample=int8_oversample)
 
     def _search_emb(self, query_emb_float, query_emb_ubinary, k=10, binary_oversample=10, int8_oversample=3):
+        """
+        Perform search with given embeddings
+        """
         binary_k = min(k*binary_oversample, self.index.ntotal)
         int8_rescore = k*int8_oversample
 
@@ -202,6 +255,9 @@ class BinaryVectorDB:
  
 
     def __len__(self):
+        """
+        Total number of indexed embeddings
+        """
         return self.index.ntotal
 
  
