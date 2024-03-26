@@ -15,7 +15,14 @@ Most embedding models represent their vectors as float32: These consume a lot of
 | Embed v3 - binary + int8 rescore | 66.3 | 28 ms | 30 GB memory + 240 GB disk | $1,589 / yr |
 
 
+# Demo
+
+We created a demo that allows you to search on 100M Wikipedia Embeddings for a VM that costs just $15/month:
+[Demo - Search on 100M Wikipedia Embeddings for just $15/mo](http://binaryvectordb.nils-reimers.de/)
+
 # Setup
+
+You can easily use BinaryVectorDB on your own data. 
 
 The setup is easy:
 ```
@@ -27,7 +34,7 @@ To use some of the below examples you need a **Cohere API key** (free or paid) f
 
 # Usage - Load an Existing Binary Vector Database
 
-We will talk later how to build your own vector database. For the start, let us use a pre-build binary vector database. We host various pre-build databases on [https://huggingface.co/Cohere/BinaryVectorDB](https://huggingface.co/Cohere/BinaryVectorDB). You can download these and use them localy.
+We will show later how to build a vector DB on your own data. For the start, let us use a pre-build binary vector database. We host various pre-build databases on [https://huggingface.co/Cohere/BinaryVectorDB](https://huggingface.co/Cohere/BinaryVectorDB). You can download these and use them localy.
 
 Let us the simple English version from Wikipedia to get started:
 ```
@@ -108,10 +115,62 @@ The document can be any Python serializable object. You need to provide a functi
 
 ## Updating & Deleting Documents
 
-See [examples/add_update_delete.py](examples/add_update_delete.py) for an example script how to add/update/delete documents in the database.
+Adding / deleting / updating docs is easy. See [examples/add_update_delete.py](examples/add_update_delete.py) for an example script how to add/update/delete documents in the database.
+
+
+# How does it work?
+
+We announced our [Cohere int8 & binary Embeddings](https://txt.cohere.com/int8-binary-embeddings/) embeddings, that offer a 4x and 32x reduction in the needed memory. Further, it gives up to a 40x speed-up in vector search. 
+
+## Step 1: Binary Embeddings in Memory
+Both techniques are combined in the BinaryVectorDB. For an example, let's assume the English Wikipedia with 42M embeddings. Normal float32 embeddings would need `42*10^6*1024*4 = 160 GB` of memory to just host the embeddings. As search on float32 is rather slow (about 45 seconds on 42M embeddings), we need to add an index like HNSW, that adds another 20GB of memory, so you need a total of 180 GB.
+
+Binary embeddings represents every dimension as 1 bit. This reduces the memory need to `160 GB / 32 = 5GB`. Also as search in binary space is 40x faster, you no longer need the HNSW index in many cases. You reduced your memory need from 180 GB to 5 GB, a nice 36x saving.
+
+When we query this index, we encode the query also in binary and use hamming distance. Hamming distance measures the 1-bit differences between 2 vectors. This is an extremely fast operation: To compare two binary vectors, you just need 2-CPU cycles: `popcount(xor(vector1, vector2))`. XOR is the most fundamental operation on CPUs, hence it runs extremely quickly. `popcount` counts the number of 1 in the register, which also just needs 1 CPU cycle.
+
+Overall, this gives us a solution that keeps about 90% of the search quality.
+
+## Step 2: <float, binary> Rescoring
+
+We can increase the search quality from the previous step from 90% to 95% by `<float, binary>` rescoring.
+
+We take e.g. the top-100 results from step 1, and compute `dot_product(query_float_embedding, 2*binary_doc_embedding-1)`.
+
+Assume our query embedding is `[0.1, -0.3, 0.4]` and our binary document embedding is `[1, 0, 1]`. This step then computes:
+```
+(0.1)*(1) + (-0.3)*(-1) + 0.4*(1) = 0.1 + 0.3 + 0.4 = 0.8
+```
+
+We use these scores and rescore our results. This pushes the search quality from 90% to 95%. This operation can be done extremely quickly: We get the query float embedding from the embedding model, the binary embeddings are in memory, so we just need to do 100 sum-operations.
+
+## Step 3: <float, int8> Rescoring from Disk
+
+To further improve the search quality, from 95% to 99.99%, we use int8 rescoring from disk.
+
+We save all int8 document embeddings on disk. We take then the top-30 from the above step, load the int8-embeddings from disk, and compute `cossim(query_float_embedding, int8_doc_embedding_from_disk)`
+
+In the following image you can see how much int8-rescoring and improve the search performance:
+
+
+We also plotted the Queries per Seconds that such a system can achieve when run on a normal AWS EBS network drive with 3000 IOPS. As we see, the more int8 embeddings we need to load from disk, the few QPS.
+
+
+## Technical Implementation
+
+To perform the binary search, we use the IndexBinaryFlat index from [faiss](https://github.com/facebookresearch/faiss). It just stores the binary embeddings, allows super fast indexing and super fast search.
+
+To store the documents and the int8 embeddings, we use [RocksDict](https://github.com/Congyuwang/RocksDict), an on-disk key-value storage for Python based on [RocksDB](https://github.com/facebook/rocksdb).
+
+See [BinaryVectorDB](BinaryVectorDB/BinaryVectorDB.py) for the full implementation of the class.
 
 # Is this a real Vector Database?
 
 Not really. The repository is meant mostly for educational purposes to show techniques how to scale to large datasets. The focus was more on ease of use and some critical aspects are missing in the implementation, like multi-process safety, rollbacks etc. 
 
 If you actually wants to go into production, use a proper vector database like [Vespa.ai](https://blog.vespa.ai/scaling-large-vector-datasets-with-cohere-binary-embeddings-and-vespa/), that allows you to achieve similar results.
+
+
+# Need Semantic Search at Scale?
+
+At [Cohere](https://cohere.com) we helped customers to run Semantic Search on tens of billions of embeddings, at a fraction of the cost. Feel free to reach out for [Nils Reimers](mailto:nils@cohere.com) if you need a solution that scales.
