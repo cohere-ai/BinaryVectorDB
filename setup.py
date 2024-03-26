@@ -5,7 +5,7 @@ with open("README.md", mode="r", encoding="utf-8") as readme_file:
 
 setup(
     name="BinaryVectorDB",
-    version="0.0.3",
+    version="0.0.4",
     author="Nils Reimers",
     author_email="nils@cohere.com",
     description="Efficient vector DB using binary & int8 embeddings",
@@ -20,7 +20,8 @@ setup(
         'numpy',
         'rocksdict',
         'cohere==4.57',
-        'packaging'
+        'packaging',
+        'tqdm'
     ],
     classifiers=[
         "Development Status :: 4 - Beta",
