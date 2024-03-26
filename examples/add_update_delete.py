@@ -85,7 +85,7 @@ for hit in hits:
 
 
 ############################
-# Update a document
+# Remove a document
 ############################
 
 # Pass in the ID you want to remove
