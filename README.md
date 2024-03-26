@@ -125,6 +125,8 @@ We announced our [Cohere int8 & binary Embeddings](https://txt.cohere.com/int8-b
 ## Step 1: Binary Embeddings in Memory
 Both techniques are combined in the BinaryVectorDB. For an example, let's assume the English Wikipedia with 42M embeddings. Normal float32 embeddings would need `42*10^6*1024*4 = 160 GB` of memory to just host the embeddings. As search on float32 is rather slow (about 45 seconds on 42M embeddings), we need to add an index like HNSW, that adds another 20GB of memory, so you need a total of 180 GB.
 
+![float_to_binary](img/float_to_binary.png)
+
 Binary embeddings represents every dimension as 1 bit. This reduces the memory need to `160 GB / 32 = 5GB`. Also as search in binary space is 40x faster, you no longer need the HNSW index in many cases. You reduced your memory need from 180 GB to 5 GB, a nice 36x saving.
 
 When we query this index, we encode the query also in binary and use hamming distance. Hamming distance measures the 1-bit differences between 2 vectors. This is an extremely fast operation: To compare two binary vectors, you just need 2-CPU cycles: `popcount(xor(vector1, vector2))`. XOR is the most fundamental operation on CPUs, hence it runs extremely quickly. `popcount` counts the number of 1 in the register, which also just needs 1 CPU cycle.
@@ -142,6 +144,8 @@ Assume our query embedding is `[0.1, -0.3, 0.4]` and our binary document embeddi
 (0.1)*(1) + (-0.3)*(-1) + 0.4*(1) = 0.1 + 0.3 + 0.4 = 0.8
 ```
 
+![float-binary-rescoring](img/float-binary-rescoring.png)
+
 We use these scores and rescore our results. This pushes the search quality from 90% to 95%. This operation can be done extremely quickly: We get the query float embedding from the embedding model, the binary embeddings are in memory, so we just need to do 100 sum-operations.
 
 ## Step 3: <float, int8> Rescoring from Disk
@@ -155,6 +159,7 @@ In the following image you can see how much int8-rescoring and improve the searc
 
 We also plotted the Queries per Seconds that such a system can achieve when run on a normal AWS EBS network drive with 3000 IOPS. As we see, the more int8 embeddings we need to load from disk, the few QPS.
 
+![int8_rescoring](img/int8_rescoring.png)
 
 ## Technical Implementation
 
