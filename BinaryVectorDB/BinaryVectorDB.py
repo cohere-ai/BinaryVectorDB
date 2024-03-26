@@ -160,7 +160,7 @@ class BinaryVectorDB:
         hits_scores, hits_doc_ids = self.index.search(query_emb_ubinary, k=binary_k)
 
         #Get the results in a list of hits
-        hits = [{'doc_id': doc_id.item(), 'score_hamming': score_bin} for doc_id, score_bin in zip(hits_doc_ids[0], hits_scores[0])]
+        hits = [{'doc_id': doc_id.item(), 'score_hamming': score_bin.item()} for doc_id, score_bin in zip(hits_doc_ids[0], hits_scores[0])]
 
         logger.info(f"Search with hamming distance took {(time.time()-start_time)*1000:.2f} ms")
 
@@ -172,7 +172,7 @@ class BinaryVectorDB:
 
         scores2 = (query_emb_float[0] @ doc_emb_unpacked.T)
         for idx in range(len(scores2)):
-            hits[idx]['score_binary'] = scores2[idx]
+            hits[idx]['score_binary'] = scores2[idx].item()
 
         #Sort by largest score2
         hits.sort(key=lambda x: x['score_binary'], reverse=True)
@@ -191,7 +191,7 @@ class BinaryVectorDB:
         scores3 = (query_emb_float[0] @ doc_emb_int8.T) / np.linalg.norm(doc_emb_int8, axis=1)
 
         for idx in range(len(scores3)):
-            hits[idx]['score_cossim'] = scores3[idx]
+            hits[idx]['score_cossim'] = scores3[idx].item()
 
         hits.sort(key=lambda x: x['score_cossim'], reverse=True)
         hits = hits[0:k]

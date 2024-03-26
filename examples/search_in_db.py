@@ -30,5 +30,5 @@ while True:
     hits = db.search(query, k=10)
     for hit in hits:
         print(hit)
-    
+
     print("\n===================\n")
