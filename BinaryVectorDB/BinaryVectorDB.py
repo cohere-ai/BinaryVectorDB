@@ -13,57 +13,55 @@ from typing import List
 logger = logging.getLogger(__name__)
 
 class BinaryVectorDB:
-    class BinaryVectorDB:
 
+    def __init__(self, folder, model="embed-multilingual-v3.0", index_type=faiss.IndexBinaryFlat, index_args=[1024], rdict_options=None):
+        """
+        Initialize a BinaryVectorDB object.
 
-        def __init__(self, folder, model="embed-multilingual-v3.0", index_type=faiss.IndexBinaryFlat, index_args=[1024], rdict_options=None):
-            """
-            Initialize a BinaryVectorDB object.
+        If the specified folder does not exist, it will be created along with a config.json file.
+        If the folder contains files but no config.json, an exception will be raised.
+        If the folder contains an existing Faiss index file (index.bin), it will be loaded.
 
-            If the specified folder does not exist, it will be created along with a config.json file.
-            If the folder contains files but no config.json, an exception will be raised.
-            If the folder contains an existing Faiss index file (index.bin), it will be loaded.
+        Args:
+            folder (str): The path to the folder where the database will be stored.
+            model (str, optional): The name of the pre-trained model to use for vector embeddings. Defaults to "embed-multilingual-v3.0".
+            index_type (class, optional): The type of Faiss index to use for binary vectors. Defaults to faiss.IndexBinaryFlat.
+            index_args (list, optional): Additional arguments to pass to the Faiss index constructor. Defaults to [1024].
+            rdict_options (dict, optional): Options to configure the Rdict database. Defaults to None.
 
-            Args:
-                folder (str): The path to the folder where the database will be stored.
-                model (str, optional): The name of the pre-trained model to use for vector embeddings. Defaults to "embed-multilingual-v3.0".
-                index_type (class, optional): The type of Faiss index to use for binary vectors. Defaults to faiss.IndexBinaryFlat.
-                index_args (list, optional): Additional arguments to pass to the Faiss index constructor. Defaults to [1024].
-                rdict_options (dict, optional): Options to configure the Rdict database. Defaults to None.
+        Raises:
+            Exception: If the COHERE_API_KEY environment variable is not set.
+            Exception: If the specified folder contains files but no config.json.
+        """
+        
+        if 'COHERE_API_KEY' not in os.environ:
+            raise Exception("Please set the COHERE_API_KEY environment variable to your Cohere API key.")
+        
+        self.co = cohere.Client(os.environ['COHERE_API_KEY']) 
 
-            Raises:
-                Exception: If the COHERE_API_KEY environment variable is not set.
-                Exception: If the specified folder contains files but no config.json.
-            """
+        config_path = os.path.join(folder, "config.json")
+        if not os.path.exists(config_path):
+            if os.path.exists(folder) and len(os.listdir(folder)) > 0:
+                raise Exception(f"Folder {folder} contains files, but no config.json. If you want to create a new CohereBinaryVectorDB, the folder must be empty. If you want to load an existing CohereBinaryVectorDB, the folder must contain a config.json file that defines the model.")
             
-            if 'COHERE_API_KEY' not in os.environ:
-                raise Exception("Please set the COHERE_API_KEY environment variable to your Cohere API key.")
-            
-            self.co = cohere.Client(os.environ['COHERE_API_KEY']) 
-
-            config_path = os.path.join(folder, "config.json")
-            if not os.path.exists(config_path):
-                if os.path.exists(folder) and len(os.listdir(folder)) > 0:
-                    raise Exception(f"Folder {folder} contains files, but no config.json. If you want to create a new CohereBinaryVectorDB, the folder must be empty. If you want to load an existing CohereBinaryVectorDB, the folder must contain a config.json file that defines the model.")
-                
-                os.makedirs(folder, exist_ok=True)
-                with open(config_path, "w") as fOut:
-                    config = {'version': '1.0', 'model': model}
-                    json.dump(config, fOut)
-            
-            with open(config_path, "r") as fIn:
-                self.config = json.load(fIn)
-
             os.makedirs(folder, exist_ok=True)
-            self.folder = folder
+            with open(config_path, "w") as fOut:
+                config = {'version': '1.0', 'model': model}
+                json.dump(config, fOut)
+        
+        with open(config_path, "r") as fIn:
+            self.config = json.load(fIn)
 
-            faiss_index_path = os.path.join(folder, "index.bin")
-            if not os.path.exists(faiss_index_path):
-                self.index = faiss.IndexBinaryIDMap2(index_type(*index_args))
-            else:
-                self.index = faiss.read_index_binary(faiss_index_path)
+        os.makedirs(folder, exist_ok=True)
+        self.folder = folder
 
-            self.doc_db = Rdict(os.path.join(folder, "docs"), rdict_options)
+        faiss_index_path = os.path.join(folder, "index.bin")
+        if not os.path.exists(faiss_index_path):
+            self.index = faiss.IndexBinaryIDMap2(index_type(*index_args))
+        else:
+            self.index = faiss.read_index_binary(faiss_index_path)
+
+        self.doc_db = Rdict(os.path.join(folder, "docs"), rdict_options)
         
 
     def add_documents(self, doc_ids, docs, docs2text=lambda x: x, batch_size = 960, save=True):
