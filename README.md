@@ -29,7 +29,7 @@ The setup is easy:
 pip install BinaryVectorDB
 ```
 
-To use some of the below examples you need a **Cohere API key** (free or paid) from [https://cohere.com/](Cohere.com). You must set this API key as an environment variable: `export COHERE_API_KEY=your_api_key`  
+To use some of the below examples you need a **Cohere API key** (free or paid) from [cohere.com](https://cohere.com/). You must set this API key as an environment variable: `export COHERE_API_KEY=your_api_key`  
 
 
 # Usage - Load an Existing Binary Vector Database
